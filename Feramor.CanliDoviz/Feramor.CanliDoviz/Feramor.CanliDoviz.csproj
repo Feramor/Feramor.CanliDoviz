@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <Title>Feramor.CanliDoviz</Title>
+        <Authors>Feramor</Authors>
+        <Description>Canlidoviz websoketi uzerinden anlik olarak kur guncellemesi yapilmasina olanak saglar</Description>
+        <PackageProjectUrl>https://github.com/Feramor/Feramor.CanliDoviz</PackageProjectUrl>
+        <PackageIcon>icon.png</PackageIcon>
+        <RepositoryUrl>https://github.com/Feramor/Feramor.CanliDoviz</RepositoryUrl>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+      <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+      <PackageReference Include="SocketIOClient" Version="3.1.2" />
+    </ItemGroup>
+
+</Project>
