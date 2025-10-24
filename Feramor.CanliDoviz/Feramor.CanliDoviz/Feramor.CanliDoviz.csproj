@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFrameworks>net6.0;net7.0;net8.0;net9.0;netstandard2.0;netstandard2.1</TargetFrameworks>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <Title>Feramor.CanliDoviz</Title>
@@ -10,6 +10,8 @@
         <PackageProjectUrl>https://github.com/Feramor/Feramor.CanliDoviz</PackageProjectUrl>
         <PackageIcon>icon.png</PackageIcon>
         <RepositoryUrl>https://github.com/Feramor/Feramor.CanliDoviz</RepositoryUrl>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <LangVersion>latest</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>
@@ -17,5 +19,8 @@
       <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
       <PackageReference Include="SocketIOClient" Version="3.1.2" />
     </ItemGroup>
-
+    
+    <ItemGroup>
+        <None Include="icon.png" Pack="true" PackagePath="\" />
+    </ItemGroup>
 </Project>

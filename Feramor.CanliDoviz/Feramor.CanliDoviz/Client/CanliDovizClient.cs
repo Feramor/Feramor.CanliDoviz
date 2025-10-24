@@ -56,7 +56,14 @@ public class CanliDovizClient  : IDisposable
             var data = await CanliDovizDovizKurlari.GetCidToCurrencyMapping(_cancellationToken);
             foreach (var item in data)
             {
-                _symbolMap.TryAdd(item.Key, item.Value);
+                #if NETSTANDARD2_0 || NETSTANDARD2_1
+                    if (!_symbolMap.ContainsKey(item.Key))
+                    {
+                        _symbolMap.Add(item.Key, item.Value);
+                    }
+                #else
+                    _symbolMap.TryAdd(item.Key, item.Value);
+                #endif
             }
         }
         SetupEventHandlers();

@@ -2,7 +2,7 @@
 
 public class CurrencyData
 {
-    public string Symbol { get; set; }
+    public string? Symbol { get; set; }
     public decimal? BuyPrice { get; set; }
     public decimal? SellPrice { get; set; }
     public decimal? BuyPriceChange { get; set; }
