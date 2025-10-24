@@ -1,18 +1,19 @@
-
 # Feramor.CanliDoviz
 
 A real-time currency exchange rate client library for .NET that connects to CanliDoviz.com's WebSocket API to receive live currency updates.
 
 [![.NET](https://img.shields.io/badge/.NET-5.0%2B-512BD4)](https://dotnet.microsoft.com/)
-[![NuGet](https://img.shields.io/badge/NuGet-Available-blue)](https://www.nuget.org/)
+[![NuGet](https://img.shields.io/badge/NuGet-Available-blue)](https://www.nuget.org/packages/Feramor.CanliDoviz)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ## Features
 
-- 🔄 **Real-time Updates**: Receive live currency exchange rates via WebSocket connection
+- 🔄 **Real-time Updates**: Receive live exchange rates via WebSocket connection
+- 💰 **Multiple Asset Types**: Support for currencies, gold, stocks, and cryptocurrencies
 - 📊 **Price Change Tracking**: Automatic calculation of buy/sell price changes
 - 🔌 **Auto-reconnection**: Built-in reconnection logic with configurable attempts
-- 🎯 **Event-driven Architecture**: Subscribe to currency changes and connection events
+- ⚙️ **Flexible Configuration**: Customizable options for reconnection and asset type selection
+- 🎯 **Event-driven Architecture**: Subscribe to rate changes and connection events
 - 🛡️ **Thread-safe**: Designed with concurrent operations in mind
 - 📝 **Comprehensive Logging**: Built-in logging system with multiple log levels
 - 🌐 **Multi-target Support**: Compatible with .NET Standard 2.0, 2.1, and .NET 5+
@@ -42,13 +43,13 @@ using Feramor.CanliDoviz.Models;
 // Create a cancellation token source for graceful shutdown
 var cts = new CancellationTokenSource();
 
-// Initialize the client
-using var client = new CanliDovizClient(cts.Token);
+// Initialize the client with default options (currencies only)
+using var client = new CanliDovizClient(cancellationToken: cts.Token);
 
 // Subscribe to currency change events
 client.OnCurrencyChanged += (sender, data) =>
 {
-    Console.WriteLine($"Currency: {data.Symbol}");
+    Console.WriteLine($"Symbol: {data.Symbol}");
     Console.WriteLine($"Buy Price: {data.BuyPrice}");
     Console.WriteLine($"Sell Price: {data.SellPrice}");
     Console.WriteLine($"Change: {data.BuyPriceChange}");
@@ -70,10 +71,60 @@ Console.WriteLine("Press Ctrl+C to exit...");
 await Task.Delay(Timeout.Infinite, cts.Token);
 ```
 
-### Advanced Usage with Custom Symbol Mapping
+### Advanced Usage with Options
 
 ```csharp
-// Pre-define currency symbols to monitor
+// Configure options to monitor multiple asset types
+var options = new Options
+{
+    CurrencyList = CurrencyList.Currency | CurrencyList.Gold | CurrencyList.Crypto,
+    Reconnection = true,
+    ReconnectionDelay = 2000,
+    ReconnectionAttempts = 10
+};
+
+using var client = new CanliDovizClient(options, cancellationToken);
+
+client.OnCurrencyChanged += (sender, data) =>
+{
+    Console.WriteLine($"{data.Symbol}: {data.BuyPrice}/{data.SellPrice}");
+};
+
+await client.StartAsync();
+```
+
+### Monitor Specific Asset Types
+
+```csharp
+// Monitor only gold prices
+var goldOptions = new Options
+{
+    CurrencyList = CurrencyList.Gold
+};
+
+using var goldClient = new CanliDovizClient(goldOptions, cancellationToken);
+
+// Monitor currencies and stocks
+var mixedOptions = new Options
+{
+    CurrencyList = CurrencyList.Currency | CurrencyList.Stock
+};
+
+using var mixedClient = new CanliDovizClient(mixedOptions, cancellationToken);
+
+// Monitor everything
+var allOptions = new Options
+{
+    CurrencyList = CurrencyList.All
+};
+
+using var allClient = new CanliDovizClient(allOptions, cancellationToken);
+```
+
+### Custom Symbol Mapping
+
+```csharp
+// Pre-define specific symbols to monitor
 var symbolMap = new Dictionary<int, string>
 {
     { 1, "USD" },
@@ -81,7 +132,7 @@ var symbolMap = new Dictionary<int, string>
     { 3, "GBP" }
 };
 
-using var client = new CanliDovizClient(symbolMap, cancellationToken);
+using var client = new CanliDovizClient(symbolMap, cancellationToken: cancellationToken);
 
 client.OnCurrencyChanged += (sender, data) =>
 {
@@ -112,11 +163,11 @@ The main client class for connecting to CanliDoviz.com's real-time currency data
 #### Constructors
 
 ```csharp
-// Default constructor - fetches all available currencies
-CanliDovizClient(CancellationToken cancellationToken = default)
+// Default constructor - fetches currencies based on options
+CanliDovizClient(Options? options = null, CancellationToken cancellationToken = default)
 
 // Constructor with custom symbol mapping
-CanliDovizClient(Dictionary<int, string> symbolMap, CancellationToken cancellationToken = default)
+CanliDovizClient(Dictionary<int, string> symbolMap, Options? options = null, CancellationToken cancellationToken = default)
 ```
 
 #### Methods
@@ -180,35 +231,147 @@ public enum LogLevel
 }
 ```
 
+### Options
+
+Configuration options for the client.
+
+```csharp
+public class Options
+{
+    public bool Reconnection { get; set; } = true;           // Enable automatic reconnection
+    public double ReconnectionDelay { get; set; } = 1000;    // Delay between reconnection attempts (ms)
+    public int ReconnectionAttempts { get; set; } = 5;       // Maximum reconnection attempts
+    public CurrencyList CurrencyList { get; set; } = CurrencyList.Currency;  // Asset types to monitor
+}
+```
+
+### CurrencyList
+
+Flags enum for selecting which asset types to monitor.
+
+```csharp
+[Flags]
+public enum CurrencyList
+{
+    None = 0,
+    Currency = 1,    // Foreign exchange currencies
+    Gold = 2,        // Gold prices
+    Stock = 4,       // Stock market indices
+    Crypto = 8,      // Cryptocurrencies
+    All = Currency | Gold | Stock | Crypto
+}
+```
+
+**Usage Examples:**
+
+```csharp
+// Single type
+var options = new Options { CurrencyList = CurrencyList.Currency };
+
+// Multiple types using bitwise OR
+var options = new Options { CurrencyList = CurrencyList.Currency | CurrencyList.Gold };
+
+// All types
+var options = new Options { CurrencyList = CurrencyList.All };
+```
+
+## Helper Methods
+
+### CanliDovizMappings
+
+Static helper class that provides methods to fetch symbol ID mappings from CanliDoviz.com. These methods are used internally by the client but can also be called directly if you need to retrieve mappings separately.
+
+#### Available Methods
+
+```csharp
+// Get currency mappings (USD, EUR, GBP, etc.)
+Task<Dictionary<int, string>> GetCurrencyMappings(CancellationToken cancellationToken = default)
+
+// Get gold price mappings (gram gold, quarter gold, etc.)
+Task<Dictionary<int, string>> GetGoldMappings(CancellationToken cancellationToken = default)
+
+// Get stock market index mappings (BIST 100, XU030, etc.)
+Task<Dictionary<int, string>> GetStockMappings(CancellationToken cancellationToken = default)
+
+// Get cryptocurrency mappings (BTC, ETH, XRP, etc.)
+Task<Dictionary<int, string>> GetCryptoMappings(CancellationToken cancellationToken = default)
+```
+
+#### Usage Example
+
+```csharp
+using Feramor.CanliDoviz.Helpers;
+
+// Fetch currency mappings manually
+var currencyMappings = await CanliDovizMappings.GetCurrencyMappings();
+foreach (var mapping in currencyMappings)
+{
+    Console.WriteLine($"ID: {mapping.Key}, Symbol: {mapping.Value}");
+}
+
+// Use custom mappings with the client
+var goldMappings = await CanliDovizMappings.GetGoldMappings();
+var client = new CanliDovizClient(goldMappings);
+await client.StartAsync();
+```
+
 ## Architecture
 
 The library consists of several key components:
 
 - **CanliDovizClient**: Main client managing WebSocket connections and event handling
-- **CanliDovizDovizKurlari**: Helper class for fetching currency ID mappings from canlidoviz.com
-- **CurrencyData**: Model representing currency exchange rate data
+- **CanliDovizMappings**: Helper class providing methods to fetch symbol ID mappings for currencies, gold, stocks, and cryptocurrencies from canlidoviz.com
+- **CurrencyData**: Model representing exchange rate data for any asset type
+- **Options**: Configuration class for client behavior and asset type selection
+- **CurrencyList**: Flags enum for selecting which asset types to monitor
 - **Log/LogLevel**: Logging infrastructure for monitoring client behavior
 
 ### Connection Flow
 
-1. Client initializes with optional symbol mapping
-2. If no mapping provided, automatically fetches available currencies
+1. Client initializes with optional configuration and symbol mapping
+2. If no custom mapping provided, automatically fetches symbols based on `CurrencyList` option:
+   - Currencies from `https://canlidoviz.com/doviz-kurlari`
+   - Gold prices from `https://canlidoviz.com/altin-fiyatlari`
+   - Stocks from `https://canlidoviz.com/borsa`
+   - Cryptocurrencies from `https://canlidoviz.com/kripto-paralar`
 3. Establishes WebSocket connection to `s.canlidoviz.com`
-4. Sends subscription request for specified currencies
+4. Sends subscription request with selected asset types
 5. Receives real-time updates via `"c"` event
 6. Parses updates and fires `OnCurrencyChanged` events
 
 ## Configuration
 
-### Reconnection Settings
+### Options Class
 
-The client includes built-in reconnection logic:
+Configure the client behavior using the `Options` class:
 
+```csharp
+var options = new Options
+{
+    // Enable/disable automatic reconnection
+    Reconnection = true,
+    
+    // Delay between reconnection attempts in milliseconds
+    ReconnectionDelay = 1000,
+    
+    // Maximum number of reconnection attempts
+    ReconnectionAttempts = 5,
+    
+    // Asset types to monitor (using flags)
+    CurrencyList = CurrencyList.Currency | CurrencyList.Gold
+};
+
+var client = new CanliDovizClient(options, cancellationToken);
+```
+
+### Default Settings
+
+If no options are provided, the client uses these defaults:
+
+- **Reconnection**: Enabled
 - **Reconnection Delay**: 1000ms (1 second)
 - **Reconnection Attempts**: 5 attempts
-- **Auto Reconnect**: Enabled by default
-
-These settings are configured in the `SocketIOOptions` and can be modified in the constructor if needed.
+- **Currency List**: `CurrencyList.Currency` (currencies only)
 
 ## Error Handling
 
@@ -261,7 +424,68 @@ The client maintains internal dictionaries that are accessed from event handlers
 
 ### Console Application (Tested)
 
-There is an example project under [Feramor.CanliDoviz.TestConsole](https://github.com/Feramor/Feramor.CanliDoviz/tree/main/Feramor.CanliDoviz)
+There is a complete tested working example in the [Feramor.CanliDoviz.TestConsole](https://github.com/Feramor/Feramor.CanliDoviz/tree/main/Feramor.CanliDoviz.TestConsole) project.
+
+**Key features demonstrated:**
+- Monitoring all asset types (Currency, Gold, Stock, Crypto)
+- Real-time price updates with spread calculation
+- Buy/Sell price change tracking
+- Graceful shutdown with Ctrl+C or 'Q' key
+- Comprehensive logging with timestamps
+- Reconnection handling
+
+**Quick example:**
+```csharp
+var options = new Options()
+{
+    Reconnection = true,
+    ReconnectionAttempts = 10,
+    ReconnectionDelay = 5000,
+    CurrencyList = CurrencyList.All
+};
+
+var client = new CanliDovizClient(options: options, cancellationToken: cts.Token);
+
+client.OnCurrencyChanged += (sender, currency) =>
+{
+    if (currency.BuyPrice.HasValue && currency.SellPrice.HasValue)
+    {
+        Console.WriteLine($"{currency.Symbol}: Buy {currency.BuyPrice:F4} | Sell {currency.SellPrice:F4}");
+    }
+};
+
+await client.StartAsync();
+```
+
+### Simple Usage Example (Not Tested AI Generated)
+
+For minimal setup with default options:
+
+```csharp
+using Feramor.CanliDoviz.Client;
+using Feramor.CanliDoviz.Models;
+
+var cts = new CancellationTokenSource();
+
+// Default options: monitors currencies only
+using var client = new CanliDovizClient(cancellationToken: cts.Token);
+
+client.OnCurrencyChanged += (sender, data) =>
+{
+    if (data.BuyPrice.HasValue && data.SellPrice.HasValue)
+    {
+        Console.WriteLine($"{data.Symbol}: {data.BuyPrice:N4} / {data.SellPrice:N4}");
+    }
+};
+
+client.OnLog += (sender, log) =>
+{
+    Console.WriteLine($"[{log.LogLevel}] {log.Message}");
+};
+
+await client.StartAsync();
+await Task.Delay(Timeout.Infinite, cts.Token);
+```
 
 ### ASP.NET Core Background Service (Not Tested AI Generated)
 
@@ -278,7 +502,13 @@ public class CurrencyMonitorService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _client = new CanliDovizClient(stoppingToken);
+        var options = new Options
+        {
+            CurrencyList = CurrencyList.All,
+            ReconnectionAttempts = 10
+        };
+
+        _client = new CanliDovizClient(options, stoppingToken);
         
         _client.OnCurrencyChanged += (sender, data) =>
         {
