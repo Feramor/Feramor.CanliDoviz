@@ -14,12 +14,20 @@ public class CanliDovizClient  : IDisposable
     private readonly Dictionary<int, string> _symbolMap;
     private readonly Dictionary<string, CurrencyData> _currentRates;
     private readonly CancellationToken _cancellationToken;
+    private readonly Options _options;
+    
+    private Dictionary<int, string> _symbolToSend;
     
     public EventHandler<CurrencyData>? OnCurrencyChanged;
     public EventHandler<Log>? OnLog;
     public EventHandler? OnReconnectFailed;
 
-    public CanliDovizClient(CancellationToken cancellationToken = default)
+    protected CanliDovizClient()
+    {
+        
+    }
+
+    public CanliDovizClient(Options? options = null, CancellationToken cancellationToken = default)
     {
         _client = new SocketIOClient.SocketIO(Host, new SocketIOOptions
         {
@@ -30,11 +38,13 @@ public class CanliDovizClient  : IDisposable
             ReconnectionAttempts = 5
         });
         _symbolMap = new Dictionary<int, string>();
+        _symbolToSend = new Dictionary<int, string>();
         _currentRates = new Dictionary<string, CurrencyData>();
         _cancellationToken  = cancellationToken;
+        _options = options ?? new Options();
     }
     
-    public CanliDovizClient(Dictionary<int, string> symbolMap, CancellationToken cancellationToken = default)
+    public CanliDovizClient(Dictionary<int, string> symbolMap, Options? options = null, CancellationToken cancellationToken = default)
     {
         _client = new SocketIOClient.SocketIO(Host, new SocketIOOptions
         {
@@ -45,22 +55,84 @@ public class CanliDovizClient  : IDisposable
             ReconnectionAttempts = 5,
         });
         _symbolMap = symbolMap;
+        _symbolToSend = new Dictionary<int, string>();
         _currentRates = new Dictionary<string, CurrencyData>();
         _cancellationToken  = cancellationToken;
+        _options = options ?? new Options();
     }
     
     public async Task StartAsync()
     {
         if (_symbolMap.Count == 0)
         {
-            var data = await CanliDovizDovizKurlari.GetCidToCurrencyMapping(_cancellationToken);
-            foreach (var item in data)
+            var currencyMappings = new Dictionary<int, string>();
+            if (_options.CurrencyList.HasFlag(CurrencyList.Currency))
+            {
+                var tempCurrencyMappings = await CanliDovizMappings.GetCurrencyMappings(_cancellationToken);
+                foreach (var keyValuePair in tempCurrencyMappings)
+                {
+                    if (!_symbolMap.ContainsKey(keyValuePair.Key))
+                    {
+                        currencyMappings.Add(keyValuePair.Key, keyValuePair.Value);
+                    }
+                }
+            }
+            
+            if (_options.CurrencyList.HasFlag(CurrencyList.Gold))
+            {
+                var tempCurrencyMappings = await CanliDovizMappings.GetGoldMappings(_cancellationToken);
+                foreach (var keyValuePair in tempCurrencyMappings)
+                {
+                    if (!_symbolMap.ContainsKey(keyValuePair.Key))
+                    {
+                        currencyMappings.Add(keyValuePair.Key, keyValuePair.Value);
+                    }
+                }
+            }
+            
+            foreach (var item in currencyMappings)
+            {
+                #if NETSTANDARD2_0 || NETSTANDARD2_1
+                    if (!_symbolToSend.ContainsKey(item.Key))
+                    {
+                        _symbolToSend.Add(item.Key, item.Value);
+                    }
+                #else
+                    _symbolToSend.TryAdd(item.Key, item.Value);
+                #endif
+            }
+            
+            if (_options.CurrencyList.HasFlag(CurrencyList.Stock))
+            {
+                var tempCurrencyMappings = await CanliDovizMappings.GetStockMappings(_cancellationToken);
+                foreach (var keyValuePair in tempCurrencyMappings)
+                {
+                    if (!_symbolMap.ContainsKey(keyValuePair.Key))
+                    {
+                        currencyMappings.Add(keyValuePair.Key, keyValuePair.Value);
+                    }
+                }
+            }
+            
+            if (_options.CurrencyList.HasFlag(CurrencyList.Crypto))
+            {
+                var tempCurrencyMappings = await CanliDovizMappings.GetCryptoMappings(_cancellationToken);
+                foreach (var keyValuePair in tempCurrencyMappings)
+                {
+                    if (!_symbolMap.ContainsKey(keyValuePair.Key))
+                    {
+                        currencyMappings.Add(keyValuePair.Key, keyValuePair.Value);
+                    }
+                }
+            }
+            
+            foreach (var item in currencyMappings)
             {
                 #if NETSTANDARD2_0 || NETSTANDARD2_1
                     if (!_symbolMap.ContainsKey(item.Key))
                     {
                         _symbolMap.Add(item.Key, item.Value);
-                    }
+                    } 
                 #else
                     _symbolMap.TryAdd(item.Key, item.Value);
                 #endif
@@ -72,11 +144,20 @@ public class CanliDovizClient  : IDisposable
     
     private async Task SendRequestedCurrencyList()
     {
+        var tValues = new List<string>();
+        if (_options.CurrencyList.HasFlag(CurrencyList.Stock))
+        {
+            tValues.Add("STOCK");
+        }
+        if (_options.CurrencyList.HasFlag(CurrencyList.Crypto))
+        {
+            tValues.Add("COIN");
+        }
         await _client.EmitAsync("us", new
         {
-            t = new List<int>(),
+            t = tValues,
             m = false,
-            c = _symbolMap.Values,
+            c = _symbolToSend.Values,
         });
     }
     

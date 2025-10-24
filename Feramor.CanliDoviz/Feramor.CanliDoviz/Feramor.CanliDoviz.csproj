@@ -12,6 +12,7 @@
         <RepositoryUrl>https://github.com/Feramor/Feramor.CanliDoviz</RepositoryUrl>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <LangVersion>latest</LangVersion>
+        <Version>1.0.1</Version>
     </PropertyGroup>
 
     <ItemGroup>

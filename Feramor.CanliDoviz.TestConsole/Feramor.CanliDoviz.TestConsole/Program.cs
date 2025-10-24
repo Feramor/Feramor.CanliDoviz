@@ -13,9 +13,16 @@ class Program
         Console.WriteLine("║         Currency Exchange WebSocket Client (canlidoviz)        ║");
         Console.WriteLine("╚════════════════════════════════════════════════════════════════╝");
         Console.WriteLine();
+
+        var options = new Options()
+        {
+            Reconnection = true,
+            ReconnectionAttempts = 10,
+            ReconnectionDelay = 5000,
+            CurrencyList = CurrencyList.All
+        };
         
-        
-        var client = new CanliDovizClient(_cancellationTokenSource.Token);
+        var client = new CanliDovizClient(options:options, cancellationToken:_cancellationTokenSource.Token);
         client.OnLog += (sender, log) =>
         {
             Console.WriteLine($"[{log.Date:HH:mm:ss.fff}] [{log.LogLevel}] {log.Message} {(log.Exception is not null ? $"{log.Exception.Message}" : "")}");
